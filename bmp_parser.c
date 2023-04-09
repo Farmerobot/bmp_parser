@@ -143,7 +143,7 @@ int main(int argc, char **argv)
         {
             // read row
             fread(pixel_data, row_length, 1, bmp_file);
-            for (int i = 0; i <= row_length; i += 3)
+            for (int i = 0; i < row_length; i += 3)
             {
                 int b = pixel_data[i];
                 int g = pixel_data[i + 1];
