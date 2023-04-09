@@ -1,0 +1,1 @@
+gcc -ggdb3 bmp_parser.c && ./a.out c-programming.bmp
