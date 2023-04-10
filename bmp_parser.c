@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 typedef uint16_t WORD;
 typedef uint32_t DWORD;
@@ -101,6 +102,12 @@ void write_bmp(FILE *output_file, BITMAPFILEHEADER *file_header, BITMAPINFOHEADE
     fwrite(&info_header->biYPelsPerMeter, sizeof(info_header->biYPelsPerMeter), 1, output_file);
     fwrite(&info_header->biClrUsed, sizeof(info_header->biClrUsed), 1, output_file);
     fwrite(&info_header->biClrImportant, sizeof(info_header->biClrImportant), 1, output_file);
+
+    // handle file padding
+    int offset = file_header->bfOffBits - 54;
+    char padding[offset];
+    memset(padding, 0, offset);
+    fwrite(padding, offset, 1, output_file);
 }
 
 void print_color_percentage(int *arr, int len)
@@ -135,6 +142,8 @@ int main(int argc, char **argv)
         output_file_name = argv[2];
     }
     FILE *bmp_file = fopen(argv[1], "rb");
+    FILE *output_file = NULL;
+
     if (bmp_file == NULL)
     {
         printf("Error opening bmp file\n");
@@ -144,11 +153,12 @@ int main(int argc, char **argv)
     BITMAPFILEHEADER file_header;
     BITMAPINFOHEADER info_header;
     unsigned char *pixel_data;
+    unsigned char *output_pixel_data;
 
     read_bmp(bmp_file, &file_header, &info_header);
 
     // 3.0
-    // print_bmp(&file_header, &info_header);
+    print_bmp(&file_header, &info_header);
 
     if (pixel_data == NULL)
     {
@@ -162,21 +172,6 @@ int main(int argc, char **argv)
     // 3.5
     else
     {
-        // 4.0
-        if (output_file_name != NULL)
-        {
-            FILE *output_file = fopen(output_file_name, "wb");
-            if (output_file == NULL)
-            {
-                printf("Error creating output file:'%s'", output_file_name);
-                return 1;
-            }
-
-            write_bmp(output_file, &file_header, &info_header);
-
-            fclose(output_file);
-        }
-
         int red[16] = {0};
         int green[16] = {0};
         int blue[16] = {0};
@@ -184,6 +179,19 @@ int main(int argc, char **argv)
         int row_length = ((24 * info_header.biWidth + 31) / 32) * 4;
         int height = info_header.biHeight;
 
+        // 4.0
+        if (output_file_name != NULL)
+        {
+            output_file = fopen(output_file_name, "wb");
+            if (output_file == NULL)
+            {
+                printf("Error creating output file:'%s'", output_file_name);
+                return 1;
+            }
+
+            write_bmp(output_file, &file_header, &info_header);
+            output_pixel_data = malloc(row_length);
+        }
         pixel_data = malloc(row_length);
 
         // Move pointer to RGB pixel part
@@ -205,14 +213,24 @@ int main(int argc, char **argv)
                 // 4.0
                 if (output_file_name != NULL)
                 {
+                    int grayscale = (r + g + b) / 3;
+                    output_pixel_data[i] = grayscale;
+                    output_pixel_data[i + 1] = grayscale;
+                    output_pixel_data[i + 2] = grayscale;
                 }
                 // printf("rgb: %u %u %u\n", r, g, b);
             }
+            // 4.0
+            if (output_file_name != NULL)
+            {
+                fwrite(output_pixel_data, row_length, 1, output_file);
+            }
         }
         // 3.5
-        print_all_color_percentages(blue, green, red, length);
+        // print_all_color_percentages(blue, green, red, length);
     }
 
+    fclose(output_file);
     fclose(bmp_file);
     free(pixel_data);
 
