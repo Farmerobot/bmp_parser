@@ -65,7 +65,7 @@ void read_bmp(FILE *bmp_file, BITMAPFILEHEADER *file_header, BITMAPINFOHEADER *i
 void print_bmp(BITMAPFILEHEADER *file_header, BITMAPINFOHEADER *info_header)
 {
     printf("BITMAPFILEHEADER:\n");
-    printf("  bfType:          0x%x (BM)\n", file_header->bfType);
+    printf("  bfType:          0x%x (%c%c)\n", file_header->bfType, (char)(file_header->bfType), (char)(file_header->bfType >> 8));
     printf("  bfSize:          %d\n", file_header->bfSize);
     printf("  bfReserved1:     0x%x\n", file_header->bfReserved1);
     printf("  bfReserved2:     0x%x\n", file_header->bfReserved2);
@@ -115,7 +115,7 @@ void print_color_percentage(int *arr, int len)
     for (int i = 0; i < 16; i++)
     {
         double percentage = (double)arr[i] / (len / 3) * 100;
-        printf("  %d-%d: %.2lf\n", 16 * i, 16 * (i + 1) - 1, percentage);
+        printf("  %d-%d: %.2lf%\n", 16 * i, 16 * (i + 1) - 1, percentage);
     }
 }
 
