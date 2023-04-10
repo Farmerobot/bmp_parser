@@ -32,7 +32,7 @@ typedef struct tagBITMAPINFOHEADER
     DWORD biClrImportant;
 } BITMAPINFOHEADER, *LPBITMAPINFOHEADER, *PBITMAPINFOHEADER;
 
-void read_bmp(FILE *bmp_file, BITMAPFILEHEADER *file_header, BITMAPINFOHEADER *info_header, unsigned char **pixel_data)
+void read_bmp(FILE *bmp_file, BITMAPFILEHEADER *file_header, BITMAPINFOHEADER *info_header)
 {
     fread(&file_header->bfType, sizeof(file_header->bfType), 1, bmp_file);
     fread(&file_header->bfSize, sizeof(file_header->bfSize), 1, bmp_file);
@@ -83,7 +83,27 @@ void print_bmp(BITMAPFILEHEADER *file_header, BITMAPINFOHEADER *info_header)
     printf("  biClrImportant:  %d\n", info_header->biClrImportant);
 }
 
-int print_color_percentage(int *arr, int len)
+void write_bmp(FILE *output_file, BITMAPFILEHEADER *file_header, BITMAPINFOHEADER *info_header)
+{
+    fwrite(&file_header->bfType, sizeof(file_header->bfType), 1, output_file);
+    fwrite(&file_header->bfSize, sizeof(file_header->bfSize), 1, output_file);
+    fwrite(&file_header->bfReserved1, sizeof(file_header->bfReserved1), 1, output_file);
+    fwrite(&file_header->bfReserved2, sizeof(file_header->bfReserved2), 1, output_file);
+    fwrite(&file_header->bfOffBits, sizeof(file_header->bfOffBits), 1, output_file);
+    fwrite(&info_header->biSize, sizeof(info_header->biSize), 1, output_file);
+    fwrite(&info_header->biWidth, sizeof(info_header->biWidth), 1, output_file);
+    fwrite(&info_header->biHeight, sizeof(info_header->biHeight), 1, output_file);
+    fwrite(&info_header->biPlanes, sizeof(info_header->biPlanes), 1, output_file);
+    fwrite(&info_header->biBitCount, sizeof(info_header->biBitCount), 1, output_file);
+    fwrite(&info_header->biCompression, sizeof(info_header->biCompression), 1, output_file);
+    fwrite(&info_header->biSizeImage, sizeof(info_header->biSizeImage), 1, output_file);
+    fwrite(&info_header->biXPelsPerMeter, sizeof(info_header->biXPelsPerMeter), 1, output_file);
+    fwrite(&info_header->biYPelsPerMeter, sizeof(info_header->biYPelsPerMeter), 1, output_file);
+    fwrite(&info_header->biClrUsed, sizeof(info_header->biClrUsed), 1, output_file);
+    fwrite(&info_header->biClrImportant, sizeof(info_header->biClrImportant), 1, output_file);
+}
+
+void print_color_percentage(int *arr, int len)
 {
     for (int i = 0; i < 16; i++)
     {
@@ -92,12 +112,27 @@ int print_color_percentage(int *arr, int len)
     }
 }
 
+void print_all_color_percentages(int *blue, int *green, int *red, int length)
+{
+    printf("Blue:\n");
+    print_color_percentage(blue, length);
+    printf("Green:\n");
+    print_color_percentage(green, length);
+    printf("Red:\n");
+    print_color_percentage(red, length);
+}
+
 int main(int argc, char **argv)
 {
+    char *output_file_name = NULL;
     if (argc <= 1)
     {
         printf("Invalid number of arguments\n");
         return 1;
+    }
+    else if (argc == 3)
+    {
+        output_file_name = argv[2];
     }
     FILE *bmp_file = fopen(argv[1], "rb");
     if (bmp_file == NULL)
@@ -110,9 +145,10 @@ int main(int argc, char **argv)
     BITMAPINFOHEADER info_header;
     unsigned char *pixel_data;
 
-    read_bmp(bmp_file, &file_header, &info_header, &pixel_data);
+    read_bmp(bmp_file, &file_header, &info_header);
+
+    // 3.0
     // print_bmp(&file_header, &info_header);
-    pixel_data = malloc(info_header.biSizeImage);
 
     if (pixel_data == NULL)
     {
@@ -123,11 +159,23 @@ int main(int argc, char **argv)
     {
         printf("Histogram calculation is unsupported\n");
     }
+    // 3.5
     else
     {
-        // info_header.biSizeImage = 30;
+        // 4.0
+        if (output_file_name != NULL)
+        {
+            FILE *output_file = fopen(output_file_name, "wb");
+            if (output_file == NULL)
+            {
+                printf("Error creating output file:'%s'", output_file_name);
+                return 1;
+            }
 
-        // fread(pixel_data, info_header.biSizeImage, 1, bmp_file);
+            write_bmp(output_file, &file_header, &info_header);
+
+            fclose(output_file);
+        }
 
         int red[16] = {0};
         int green[16] = {0};
@@ -135,6 +183,8 @@ int main(int argc, char **argv)
         int length = info_header.biSizeImage;
         int row_length = ((24 * info_header.biWidth + 31) / 32) * 4;
         int height = info_header.biHeight;
+
+        pixel_data = malloc(row_length);
 
         // Move pointer to RGB pixel part
         fseek(bmp_file, file_header.bfOffBits, SEEK_SET);
@@ -151,15 +201,16 @@ int main(int argc, char **argv)
                 red[r / 16]++;
                 green[g / 16]++;
                 blue[b / 16]++;
+
+                // 4.0
+                if (output_file_name != NULL)
+                {
+                }
                 // printf("rgb: %u %u %u\n", r, g, b);
             }
         }
-        printf("Blue:\n");
-        print_color_percentage(blue, length);
-        printf("Green:\n");
-        print_color_percentage(green, length);
-        printf("Red:\n");
-        print_color_percentage(red, length);
+        // 3.5
+        print_all_color_percentages(blue, green, red, length);
     }
 
     fclose(bmp_file);

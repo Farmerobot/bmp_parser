@@ -1,0 +1,1 @@
+gcc -ggdb3 bmp_parser.c && valgrind ./a.out c-programming.bmp out.bmp
