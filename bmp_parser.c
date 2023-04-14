@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef uint16_t WORD;
 typedef uint32_t DWORD;
@@ -132,15 +133,34 @@ void print_all_color_percentages(int *blue, int *green, int *red, int length)
 int main(int argc, char **argv)
 {
     char *output_file_name = NULL;
+    char *text_to_encode = NULL;
+    bool decode_secret = false;
     if (argc <= 1)
     {
         printf("Invalid number of arguments\n");
         return 1;
     }
+    // 4.0, grayscale
     else if (argc == 3)
     {
         output_file_name = argv[2];
     }
+    // 4.5, steganography
+    else if (argc == 4)
+    {
+        output_file_name = argv[2];
+        text_to_encode = argv[3];
+
+        if (strlen(text_to_encode) > 255)
+        {
+            printf("Message to encode must be at most 255 characters long\n");
+            return 1;
+        }
+        // Insert length as first char
+        memmove(text_to_encode + 1, text_to_encode, strlen(text_to_encode) + 1);
+        text_to_encode[0] = strlen(text_to_encode);
+    }
+
     FILE *bmp_file = fopen(argv[1], "rb");
     FILE *output_file = NULL;
 
@@ -150,6 +170,15 @@ int main(int argc, char **argv)
         return 1;
     }
 
+    // Ask to decode
+    char choice;
+    // printf("Decode steganography? [Y/n] ");
+    // scanf("%c", &choice);
+    // if (choice == 'y' || choice == 'Y') {
+    //     decode_secret = true;
+    // }
+    decode_secret = true;
+
     BITMAPFILEHEADER file_header;
     BITMAPINFOHEADER info_header;
     unsigned char *pixel_data;
@@ -158,12 +187,7 @@ int main(int argc, char **argv)
     read_bmp(bmp_file, &file_header, &info_header);
 
     // 3.0
-    print_bmp(&file_header, &info_header);
-
-    if (pixel_data == NULL)
-    {
-        printf("Error allocating memory");
-    }
+    // print_bmp(&file_header, &info_header);
 
     if (info_header.biCompression != 0 && info_header.biBitCount != 24)
     {
@@ -185,7 +209,7 @@ int main(int argc, char **argv)
             output_file = fopen(output_file_name, "wb");
             if (output_file == NULL)
             {
-                printf("Error creating output file:'%s'", output_file_name);
+                printf("Error creating output file:'%s'\n", output_file_name);
                 return 1;
             }
 
@@ -193,10 +217,24 @@ int main(int argc, char **argv)
             output_pixel_data = malloc(row_length);
         }
         pixel_data = malloc(row_length);
+        if (pixel_data == NULL)
+        {
+            printf("Error allocating memory\n");
+        }
 
         // Move pointer to RGB pixel part
         fseek(bmp_file, file_header.bfOffBits, SEEK_SET);
 
+        char decoded_string[255];
+        memset(decoded_string, 0, 255);
+        decoded_string[254] = '\0';
+
+        int decoded_string_length = 0;
+
+        char binary_str[17];
+        binary_str[16] = '\0'; // null terminator for the string
+        // binary encoding bit iterator
+        int binary_counter = 0;
         for (int row = 0; row < info_header.biHeight; row++)
         {
             // read row
@@ -210,6 +248,45 @@ int main(int argc, char **argv)
                 green[g / 16]++;
                 blue[b / 16]++;
 
+                // Decode
+                if (decode_secret)
+                {
+                    // Iterate over rgb
+                    unsigned char *ptr = pixel_data + i;
+                    for (int byte = 0; byte < 3; byte++)
+                    {
+                        int rgb_byte = binary_counter + byte;
+                        if (rgb_byte > 8 * decoded_string_length && rgb_byte > 8)
+                        {
+                            break;
+                        }
+                        int encoded_byte = (int)*(ptr + byte);
+                        // read text length from first byte
+                        if (rgb_byte < 8)
+                        {
+                            decoded_string_length <<= 1;
+                            decoded_string_length |= (encoded_byte & 0x01);
+                            continue;
+                        }
+                        // printf("rgb: %d %d %d, ", pixel_data[i], pixel_data[i + 1], pixel_data[i + 2]);
+                        // printf("ptr: %d, %d, %d, %d\n", encoded_byte, b, g, r);
+                        decoded_string[(rgb_byte) / 8] <<= 1;
+                        decoded_string[(rgb_byte) / 8] |= (encoded_byte & 0x01);
+                        // binary_str[rgb_byte] = (encoded_byte & 0x01) == 0 ? '0' : '1';
+                    }
+                }
+                // decoded_string[binary_counter / 8] <<= 1;
+                // decoded_string[binary_counter / 8] |= (b & 0x01);
+                // binary_str[binary_counter] = (b & 0x01) == 0 ? '0' : '1';
+
+                // decoded_string[(binary_counter + 1) / 8] <<= 1;
+                // decoded_string[(binary_counter + 1) / 8] |= (g & 0x01);
+                // binary_str[binary_counter + 1] = (g & 0x01) == 0 ? '0' : '1';
+
+                // decoded_string[(binary_counter + 2) / 8] <<= 1;
+                // decoded_string[(binary_counter + 2) / 8] |= (r & 0x01);
+                // binary_str[binary_counter + 2] = (r & 0x01) == 0 ? '0' : '1';
+
                 // 4.0
                 if (output_file_name != NULL)
                 {
@@ -217,8 +294,41 @@ int main(int argc, char **argv)
                     output_pixel_data[i] = grayscale;
                     output_pixel_data[i + 1] = grayscale;
                     output_pixel_data[i + 2] = grayscale;
+                    // 4.5
+                    // Encode binary data from string
+                    if (text_to_encode != NULL)
+                    {
+                        for (int bit = 0; bit < 3; bit++)
+                        {
+                            int rgb_bit = binary_counter + bit;
+                            // reached end of string
+                            if (rgb_bit > 8 * strlen(text_to_encode))
+                            {
+                                break;
+                            }
+                            char char_to_encode = text_to_encode[rgb_bit / 8];
+                            unsigned bit_to_encode = ((char_to_encode >> (7 - (rgb_bit % 8))) & 0x01);
+                            // set bit to 0 with AND
+                            if (bit_to_encode == 0)
+                            {
+                                output_pixel_data[i + bit] &= 0b11111110;
+                            }
+                            // set bit to 1 with OR
+                            else
+                            {
+                                output_pixel_data[i + bit] |= 0b00000001;
+                            }
+                        }
+                    }
                 }
+                binary_counter += 3;
+                // printf("%d\n", binary_counter);
                 // printf("rgb: %u %u %u\n", r, g, b);
+
+                // if (binary_counter >= 16)
+                // {
+                //     return 0;
+                // }
             }
             // 4.0
             if (output_file_name != NULL)
@@ -226,11 +336,18 @@ int main(int argc, char **argv)
                 fwrite(output_pixel_data, row_length, 1, output_file);
             }
         }
+        // printf("bin: %s\n", binary_str);
+        if (decode_secret) {
+            printf("Decoded string: %s, len: %d\n", decoded_string + 1, decoded_string_length);
+        }
         // 3.5
         // print_all_color_percentages(blue, green, red, length);
     }
 
-    fclose(output_file);
+    if (output_file_name != NULL)
+    {
+        fclose(output_file);
+    }
     fclose(bmp_file);
     free(pixel_data);
 
