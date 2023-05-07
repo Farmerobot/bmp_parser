@@ -1,1 +1,1 @@
-gcc -ggdb3 bmp_parser.c && ./a.out in.bmp out.bmp "ab ca bc\abc" && cp out.bmp in.bmp
+gcc -ggdb3 bmp_parser.c && ./a.out in.bmp out.bmp "a " && cp out.bmp in.bmp

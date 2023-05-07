@@ -172,11 +172,11 @@ int main(int argc, char **argv)
 
     // Ask to decode
     char choice;
-    // printf("Decode steganography? [Y/n] ");
-    // scanf("%c", &choice);
-    // if (choice == 'y' || choice == 'Y') {
-    //     decode_secret = true;
-    // }
+    printf("Decode steganography? [Y/n] ");
+    scanf("%c", &choice);
+    if (choice == 'y' || choice == 'Y') {
+        decode_secret = true;
+    }
     decode_secret = true;
 
     BITMAPFILEHEADER file_header;
@@ -187,7 +187,7 @@ int main(int argc, char **argv)
     read_bmp(bmp_file, &file_header, &info_header);
 
     // 3.0
-    // print_bmp(&file_header, &info_header);
+    print_bmp(&file_header, &info_header);
 
     if (info_header.biCompression != 0 && info_header.biBitCount != 24)
     {
@@ -338,7 +338,7 @@ int main(int argc, char **argv)
         }
         // printf("bin: %s\n", binary_str);
         if (decode_secret) {
-            printf("Decoded string: %s, len: %d\n", decoded_string + 1, decoded_string_length);
+            printf("Decoded string: '%s', len: %d\n", decoded_string + 1, decoded_string_length);
         }
         // 3.5
         // print_all_color_percentages(blue, green, red, length);
