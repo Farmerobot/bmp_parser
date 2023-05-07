@@ -347,6 +347,7 @@ int main(int argc, char **argv)
     if (output_file_name != NULL)
     {
         fclose(output_file);
+        free(output_pixel_data);
     }
     fclose(bmp_file);
     free(pixel_data);
